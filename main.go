@@ -5,27 +5,48 @@ import (
 	"log"
 	"net/http"
 	"presence-manager/datastore"
+	"presence-manager/notifications"
+	"time"
 )
 
-var conn = datastore.New()
 
-func processEntryHandler(w http.ResponseWriter, r *http.Request) {
-	entryId := r.URL.Path[15:]
-	conn.UpsertEntry(entryId, 15)
-	fmt.Fprintf(w, "%s", entryId)
+func processEntryHandler(conn *datastore.Store, notifier notifications.LoggerNotifier) func(w http.ResponseWriter, r *http.Request) {
+	if conn == nil {
+		panic("Empty datastore connection!")
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		entryId := r.URL.Path[15:]
+		conn.UpsertEntry(entryId, 15)
+		time.AfterFunc(time.Second*30, func() {
+			isAlive := conn.IsEntryPresent(entryId)
+			if !isAlive {
+				notifier.Notify(entryId)
+			}
+		})
+		fmt.Fprintf(w, "%s", entryId)
+	}
+
 }
 
-func getEntryStateHandler(w http.ResponseWriter, r *http.Request) {
-	entryId := r.URL.Path[17:]
-	isAlive := conn.IsEntryPresent(entryId)
-	fmt.Fprintf(w, "%t", isAlive)
+func getEntryStateHandler(conn *datastore.Store) func(w http.ResponseWriter, r *http.Request) {
+	if conn == nil {
+		panic("Empty datastore connection!")
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		entryId := r.URL.Path[17:]
+		isAlive := conn.IsEntryPresent(entryId)
+		fmt.Fprintf(w, "%t", isAlive)
+	}
+
 }
 
 func main(){
+	conn := datastore.New()
+	mux := http.NewServeMux()
 	fmt.Println("Starting service..")
 
-	http.HandleFunc("/process-entry/", processEntryHandler)
-	http.HandleFunc("/get-entry-state/", getEntryStateHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	mux.HandleFunc("/process-entry/", processEntryHandler(conn, notifications.LoggerNotifier{}))
+	mux.HandleFunc("/get-entry-state/", getEntryStateHandler(conn))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 
 }

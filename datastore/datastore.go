@@ -4,21 +4,21 @@ import (
 	"github.com/go-redis/redis"
 	"time"
 )
-type store struct {
+type Store struct {
 	client *redis.Client
 }
 
-func New() *store {
+func New() *Store {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 		Password: "",
 		DB: 0,
 	})
 
-	return &store{client: redisClient}
+	return &Store{client: redisClient}
 }
 
-func (s *store) IsEntryPresent(key string) bool {
+func (s *Store) IsEntryPresent(key string) bool {
 	_, err := s.client.Get(key).Result()
 	if err != nil {
 		return false
@@ -26,7 +26,7 @@ func (s *store) IsEntryPresent(key string) bool {
 	return true
 }
 
-func (s *store) UpsertEntry(key string, ttl_in_seconds int) {
+func (s *Store) UpsertEntry(key string, ttl_in_seconds int) {
 	if s.IsEntryPresent(key) {
 		pipeline := s.client.Pipeline()
 		pipeline.Get(key)
