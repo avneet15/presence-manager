@@ -1,1 +1,5 @@
 Simple system for presence management
+
+# Next steps:
+- Brainstorm a suitable "notification" mechanism for when entry state changes.
+- Impact of not using defer to stop timers
